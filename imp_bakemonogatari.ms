@@ -1,7 +1,11 @@
 clearlistener()
 
-try(imp_bakemonogatari)catch(imp_bakemonogatari)
+try(DestroyDialog imp_bakemonogatari)catch(imp_bakemonogatari)
 rollout imp_bakemonogatari "Bakemonogatari Importer" (
+	
+	button btn1 "Open" width:120 height:30
+	button btn2 "Rename Extensions" width:120 height:30
+	
 	local mscale=3.93700787
 	
 	struct amg_object (
@@ -48,6 +52,50 @@ rollout imp_bakemonogatari "Bakemonogatari Importer" (
 			str += bit.intAsChar (ReadByte bstream #unsigned)
 			)
 		str
+		)
+	
+
+	-- Function to get the file extension from the file's header
+	fn getFileExtension filePath = (
+		local fext = undefined
+		local f = try(fopen filePath "rb")catch(undefined) -- Open the file in binary mode
+		if f != undefined then (
+			
+			-- Convert bytes to string
+			local headerStr = ""
+			for b = 1 to 4 do headerStr += try(bit.intAsChar (readbyte f #unsigned))catch("")
+			
+			fclose f -- Close the file after reading
+			-- Check if the first byte is '#' and derive the extension from the next 3 characters
+			if (substring headerStr 1 1 == "#") and (headerStr.count == 4) do (
+				-- Remove '#' and convert to lowercase
+				local ext = toLower (substring headerStr 2 3)
+				fext = "." + ext
+				)
+			)
+		fext
+		)
+
+	-- Function to rename files in the selected directory
+	fn renameFilesInDirectory directory = (
+		local renamedCount = 0
+		local fileList = getFiles (directory + "\\*") -- Get all files in the directory
+		
+		for file in fileList do (
+			-- Ensure it's a file and not a directory
+			if doesFileExist file do (
+				-- Get the file extension based on the file header
+				local ext = getFileExtension file
+				if ext != undefined do (
+					-- Rename the file by appending the extension
+					local newFileName = file + ext
+					renameFile file newFileName
+					renamedCount += 1
+					format "Renamed '%s' to '%s'\n" file newFileName
+					)
+				)
+			)
+		renamedCount
 		)
 	
 	fn read fsource = (
@@ -251,10 +299,26 @@ rollout imp_bakemonogatari "Bakemonogatari Importer" (
 			Print "Aborted."
 			)
 		)
+	
+	fn rename_files = (
+		local directory = getSavePath caption:"Select Directory with _NULL_ Files"
+		
+		-- Check if the user selected a valid directory
+		if directory != undefined then (
+			local renamedFiles = renameFilesInDirectory directory
+			format "Renamed % files in '%s'\n" renamedFiles directory
+			)
+		else (
+			format "No directory selected.\n"
+			)
+		)
+	
+	on btn1 pressed do (read(GetOpenFileName caption:"Select Bakemonogatari Model" types: "model (*.amo)|*.amo|All files (*.*)|*.*|"))
+	on btn2 pressed do (rename_files())
 	)
+CreateDialog imp_bakemonogatari
 
-
-imp_bakemonogatari.read(
-	"D:\\_3DMODELS\\Ripped\\Bakemonogatari\\PSP_GAME\\USRDIR\\rom\\rom\\_NULL_\\_NULL__00000b0a"
-	GetOpenFileName caption:"Select Bakemonogatari Model" types: "model (*.amo)|*.amo|All files (*.*)|*.*|"
-	)
+-- imp_bakemonogatari.read(
+-- 	"D:\\_3DMODELS\\Ripped\\Bakemonogatari\\PSP_GAME\\USRDIR\\rom\\rom\\_NULL_\\_NULL__00000b0a"
+-- 	GetOpenFileName caption:"Select Bakemonogatari Model" types: "model (*.amo)|*.amo|All files (*.*)|*.*|"
+-- 	)
